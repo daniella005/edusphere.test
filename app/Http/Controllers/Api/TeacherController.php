@@ -80,4 +80,23 @@ class TeacherController extends Controller
             'data' => $teacher->load(['user', 'school', 'department', 'profile'])
         ]);
     }
+
+public function update(Request $request, $id)
+{
+    try {
+        $teacher = Teacher::findOrFail($id);
+        $teacher->update($request->only([
+            'specialization', 'experience_years', 'department_id', 
+            'status', 'is_class_teacher'
+        ]));
+
+        return response()->json([
+            'status' => 'success',
+            'message' => 'Fiche enseignant mise à jour',
+            'data' => $teacher
+        ]);
+    } catch (\Exception $e) {
+        return response()->json(['status' => 'error', 'message' => 'Enseignant non trouvé'], 404);
+    }
+}
 }

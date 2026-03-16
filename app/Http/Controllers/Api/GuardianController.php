@@ -47,4 +47,33 @@ class GuardianController extends Controller
             return response()->json(['status' => 'error', 'message' => $e->getMessage()], 500);
         }
     }
+
+    public function update(Request $request, $id)
+{
+    try {
+        $guardian = Guardian::findOrFail($id);
+        
+        $validator = Validator::make($request->all(), [
+            'relationship_type' => 'sometimes|string',
+            'occupation'        => 'nullable|string',
+            'status'            => 'sometimes|string|in:active,inactive',
+            'office_phone'      => 'nullable|string'
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json(['status' => 'error', 'errors' => $validator->errors()], 422);
+        }
+
+        $guardian->update($request->all());
+
+        return response()->json([
+            'status' => 'success',
+            'message' => 'Tuteur mis à jour',
+            'data' => $guardian
+        ]);
+    } catch (Exception $e) {
+        return response()->json(['status' => 'error', 'message' => 'Tuteur non trouvé'], 404);
+    }
+}
+
 }

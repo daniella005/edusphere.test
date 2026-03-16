@@ -69,29 +69,33 @@ public function store(Request $request)
  */
 public function grade(Request $request, $id)
 {
-    $submission = AssignmentSubmission::with('assignment')->findOrFail($id);
+    // 1. Débogage : Si la soumission n'existe pas, on renvoie une erreur claire
+    $submission = AssignmentSubmission::find($id);
+    if (!$submission) {
+        return response()->json(['success' => false, 'message' => 'Soumission introuvable'], 404);
+    }
 
+    // 2. Validation stricte
     $validator = Validator::make($request->all(), [
-        'marks_obtained' => 'required|numeric|min:0',
-        'feedback' => 'nullable|string',
+        'marks_obtained' => 'required|numeric',
+        'graded_by' => 'required' 
     ]);
 
     if ($validator->fails()) {
         return response()->json(['errors' => $validator->errors()], 422);
     }
 
-    // On récupère le total des points (vérifie si ta colonne s'appelle total_marks ou max_marks dans 'assignments')
-    $totalMarks = $submission->assignment->total_marks ?? $submission->assignment->max_marks ?? 0;
+    // 3. Utilisation de la relation assignment en sécurité
+    $assignment = $submission->assignment;
+    $totalMarks = $assignment ? ($assignment->total_marks ?? 20) : 20;
     
-    // Calcul du pourcentage sécurisé
     $percentage = ($totalMarks > 0) ? ($request->marks_obtained / $totalMarks) * 100 : 0;
 
     $submission->update([
         'marks_obtained' => $request->marks_obtained,
         'percentage' => $percentage,
         'feedback' => $request->feedback,
-        // On prend l'ID du prof connecté, sinon celui passé en paramètre
-        'graded_by' => auth()->user()->profile->id ?? $request->graded_by, 
+        'graded_by' => $request->graded_by, 
         'graded_at' => now(),
         'status' => 'graded'
     ]);
@@ -101,5 +105,6 @@ public function grade(Request $request, $id)
         'message' => 'Devoir noté avec succès !', 
         'data' => $submission
     ]);
-}   
+}
+   
 }

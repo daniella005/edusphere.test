@@ -22,6 +22,35 @@ class SectionController extends Controller
             return response()->json(['status' => 'error', 'message' => $e->getMessage()], 500);
         }
     }
+    
+    public function update(Request $request, $id)
+{
+    try {
+        $section = Section::findOrFail($id);
+        
+        $validator = Validator::make($request->all(), [
+            'class_id'  => 'sometimes|exists:classes,id',
+            'name'      => 'sometimes|string|max:255',
+            'capacity'  => 'sometimes|integer',
+            'is_active' => 'sometimes|boolean'
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json(['status' => 'error', 'errors' => $validator->errors()], 422);
+        }
+
+        $section->update($request->all());
+
+        return response()->json([
+            'status' => 'success',
+            'message' => 'Section mise à jour !',
+            'data' => $section
+        ]);
+    } catch (Exception $e) {
+        return response()->json(['status' => 'error', 'message' => $e->getMessage()], 500);
+    }
+}
+
 
     public function store(Request $request)
     {

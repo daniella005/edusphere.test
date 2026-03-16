@@ -95,4 +95,20 @@ class ExamScheduleController extends Controller
             return response()->json(['status' => 'error', 'message' => $e->getMessage()], 500);
         }
     }
+
+    public function update(Request $request, $id) {
+    try {
+        $schedule = ExamSchedule::findOrFail($id);
+        $validator = Validator::make($request->all(), [
+            'exam_date' => 'sometimes|date',
+            'start_time' => 'sometimes',
+            'end_time' => 'sometimes|after:start_time',
+            'status' => 'sometimes|in:scheduled,ongoing,completed,cancelled'
+        ]);
+        if ($validator->fails()) return response()->json(['status' => 'error', 'errors' => $validator->errors()], 422);
+        $schedule->update($request->all());
+        return response()->json(['status' => 'success', 'message' => 'Épreuve mise à jour', 'data' => $schedule]);
+    } catch (Exception $e) { return response()->json(['status' => 'error', 'message' => 'Épreuve non trouvée'], 404); }
+}
+
 }

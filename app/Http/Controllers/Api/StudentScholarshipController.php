@@ -67,4 +67,29 @@ class StudentScholarshipController extends Controller
 
         return response()->json(['success' => true, 'message' => 'Bourse révoquée']);
     }
+
+    public function update(Request $request, $id)
+{
+    $scholarship = StudentScholarship::findOrFail($id);
+
+    $validator = Validator::make($request->all(), [
+        'scholarship_id' => 'sometimes|exists:scholarships,id',
+        'academic_year_id' => 'sometimes|exists:academic_years,id',
+        'awarded_date' => 'sometimes|date',
+        'status' => 'sometimes|in:active,revoked,expired'
+    ]);
+
+    if ($validator->fails()) {
+        return response()->json(['success' => false, 'errors' => $validator->errors()], 422);
+    }
+
+    $scholarship->update($request->all());
+
+    return response()->json([
+        'success' => true,
+        'message' => 'Bourse mise à jour',
+        'data' => $scholarship
+    ]);
+}
+
 }

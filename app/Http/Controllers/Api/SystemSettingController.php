@@ -93,48 +93,31 @@ class SystemSettingController extends Controller
      * Mettre à jour un paramètre
      */
     public function update(Request $request, $key)
-    {
-        $setting = SystemSetting::where('key', $key)->first();
+{
+    $setting = SystemSetting::where('key', $key)->firstOrFail();
 
-        if (!$setting) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Paramètre non trouvé'
-            ], 404);
-        }
+    $validator = Validator::make($request->all(), [
+        'value' => 'required',
+        'description' => 'nullable|string',
+        'is_public' => 'sometimes|boolean'
+    ]);
 
-        $validator = Validator::make($request->all(), [
-            'value' => 'required',
-            'description' => 'nullable|string',
-            'is_public' => 'sometimes|boolean'
-        ]);
-
-        if ($validator->fails()) {
-            return response()->json([
-                'success' => false,
-                'errors' => $validator->errors()
-            ], 422);
-        }
-
-        // Convertir la valeur en JSON
-        $value = is_string($request->value) ? $request->value : json_encode($request->value);
-
-        $setting->update([
-            'value' => $value,
-            'description' => $request->description ?? $setting->description,
-            'is_public' => $request->is_public ?? $setting->is_public,
-            'updated_by' => auth()->id()
-        ]);
-
-        // Vider le cache
-        $this->clearSettingsCache();
-
-        return response()->json([
-            'success' => true,
-            'message' => 'Paramètre mis à jour',
-            'data' => $setting
-        ]);
+    if ($validator->fails()) {
+        return response()->json(['success' => false, 'errors' => $validator->errors()], 422);
     }
+
+    // On laisse Eloquent gérer le formatage grâce au casting du modèle
+    $setting->update([
+        'value' => $request->value, 
+        'description' => $request->description ?? $setting->description,
+        'is_public' => $request->is_public ?? $setting->is_public,
+        'updated_by' => auth()->id()
+    ]);
+
+    $this->clearSettingsCache();
+
+    return response()->json(['success' => true, 'data' => $setting]);
+}
 
     /**
      * Supprimer un paramètre

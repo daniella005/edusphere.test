@@ -12,18 +12,16 @@ class StudentAttendance extends Model
 
     public $incrementing = false;
     protected $keyType = 'string';
-
-    // IMPORTANT : On pointe vers la table créée par ta migration
     protected $table = 'attendances'; 
 
     protected $fillable = [
         'student_id', 
         'section_id', 
-        'academic_term_id', // Ajouté car présent en migration
-        'attendance_date',  // Changé 'date' par 'attendance_date'
+        'academic_term_id',
+        'attendance_date', 
         'status', 
-        'remark',           // Changé 'remarks' par 'remark'
-        'recorded_by'       // Changé 'marked_by' par 'recorded_by'
+        'remark', 
+        'recorded_by'
     ];
 
     protected $casts = [
@@ -38,6 +36,6 @@ class StudentAttendance extends Model
 
     public function student() { return $this->belongsTo(Student::class); }
     public function section() { return $this->belongsTo(Section::class); }
-    // Relation corrigée avec la colonne recorded_by
-    public function recorder() { return $this->belongsTo(Profile::class, 'recorded_by'); }
+    // On aligne le nom avec celui utilisé dans le Controller (markedBy -> recorder)
+    public function markedBy() { return $this->belongsTo(Profile::class, 'recorded_by'); }
 }

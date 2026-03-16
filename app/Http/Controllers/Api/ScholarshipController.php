@@ -54,4 +54,28 @@ class ScholarshipController extends Controller
     // 4. Réponse
     return response()->json(['success' => true, 'data' => $scholarship], 201);
 }
+
+// ... reste du code ...
+    public function update(Request $request, $id)
+    {
+        $scholarship = Scholarship::find($id);
+        if (!$scholarship) {
+            return response()->json(['success' => false, 'message' => 'Bourse non trouvée'], 404);
+        }
+
+        $validator = Validator::make($request->all(), [
+            'name' => 'sometimes|string|max:255',
+            'discount_type' => 'sometimes|in:percentage,fixed',
+            'discount_value' => 'sometimes|numeric|min:0',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json(['success' => false, 'errors' => $validator->errors()], 422);
+        }
+
+        $scholarship->update($request->all());
+        return response()->json(['success' => true, 'data' => $scholarship]);
+    }
+
+
 }

@@ -68,4 +68,24 @@ class StudentController extends Controller
             'data' => $student->load(['profile', 'school', 'section'])
         ]);
     }
+
+    public function update(Request $request, $id)
+{
+    try {
+        $student = Student::findOrFail($id);
+        // On valide uniquement ce qu'on reçoit
+        $student->update($request->only([
+            'admission_number', 'roll_number', 'section_id', 
+            'status', 'medical_conditions', 'blood_group'
+        ]));
+
+        return response()->json([
+            'status' => 'success',
+            'message' => 'Fiche étudiant mise à jour',
+            'data' => $student
+        ]);
+    } catch (\Exception $e) {
+        return response()->json(['status' => 'error', 'message' => 'Étudiant non trouvé'], 404);
+    }
+}
 }

@@ -87,5 +87,21 @@ public function store(Request $request)
         'data' => $log
     ], 201);
 }
-    // Les méthodes update et destroy sont supprimées ou bloquées pour intégrité.
+
+public function update(Request $request, $id)
+{
+    $item = \App\Models\AuditLog::find($id);
+    if (!$item) return response()->json(['status' => 'error', 'message' => 'Log introuvable'], 404);
+
+    $validator = \Illuminate\Support\Facades\Validator::make($request->all(), [
+        'severity' => 'sometimes|string',
+        'notes' => 'nullable|string'
+    ]);
+
+    if ($validator->fails()) return response()->json(['status' => 'error', 'errors' => $validator->errors()], 422);
+
+    $item->update($request->all());
+    return response()->json(['status' => 'success', 'message' => 'Log mis à jour', 'data' => $item], 200);
+}
+    // Les méthodes  et destroy sont supprimées ou bloquées pour intégrité.
 }

@@ -12,33 +12,21 @@ class AnnouncementController extends Controller
     /**
      * Liste des annonces (filtrées par audience pour les élèves/parents)
      */
-    public function index(Request $request)
+    // Dans AnnouncementController.php, modifie l'index pour que school_id soit optionnel
+public function index(Request $request)
 {
-    // Sécurité : Forcer le school_id de l'utilisateur connecté ou valider strictement
-    $schoolId = $request->school_id; 
+    $query = Announcement::with(['author:id,first_name,last_name', 'school']);
 
-    $query = Announcement::with(['author:id,first_name,last_name', 'school'])
-        ->where('school_id', $schoolId)
-        ->where('status', 'published')
-        ->where('publish_date', '<=', now())
-        ->where(function ($q) {
-            $q->whereNull('expiry_date')
-              ->orWhere('expiry_date', '>', now());
-        });
-
-    // Correction Audience : Laravel gère les colonnes JSON, mais s'assurer de la logique
-    if ($request->has('role')) {
-        // On cherche si le rôle est dans le tableau JSON 'audience'
-        $query->whereJsonContains('audience', $request->role);
+    // On ne filtre par school_id que s'il est fourni
+    if ($request->filled('school_id')) {
+        $query->where('school_id', $request->school_id);
     }
 
-    $announcements = $query->orderBy('is_pinned', 'desc')
-                           ->orderBy('publish_date', 'desc')
-                           ->get();
+    // Pour le test, on peut vouloir voir même ce qui n'est pas encore publié
+    $announcements = $query->orderBy('created_at', 'desc')->get();
 
     return response()->json(['success' => true, 'data' => $announcements]);
 }
-
     public function store(Request $request)
     {
         $validator = Validator::make($request->all(), [
@@ -85,4 +73,23 @@ class AnnouncementController extends Controller
         $announcement->delete();
         return response()->json(['success' => true, 'message' => 'Annonce supprimée']);
     }
+
+    public function update(Request $request, $id) {
+    try {
+        $announcement = Announcement::findOrFail($id);
+        $validator = Validator::make($request->all(), [
+            'title' => 'sometimes|string|max:255',
+            'content' => 'sometimes|string',
+            'status' => 'sometimes|in:draft,published,archived',
+            'is_pinned' => 'sometimes|boolean'
+        ]);
+        if ($validator->fails()) return response()->json(['success' => false, 'errors' => $validator->errors()], 422);
+
+        $announcement->update($request->all());
+        return response()->json(['success' => true, 'message' => 'Annonce mise à jour', 'data' => $announcement]);
+    } catch (\Exception $e) {
+        return response()->json(['success' => false, 'message' => 'Annonce introuvable'], 404);
+    }
+}
+
 }

@@ -83,22 +83,33 @@ class ProfileController extends Controller
     /**
      * Met à jour un profil.
      */
-    public function update(Request $request, Profile $profile)
-    {
-        try {
-            $validator = Validator::make($request->all(), [
-                'user_id'    => 'required|exists:users,id|unique:profiles,user_id',
-                'email'      => 'required|email|unique:profiles,email', // Validation de l'email
-                'first_name' => 'required|string|max:255',
-                'last_name'  => 'required|string|max:255',
-                'phone'      => 'nullable|string|max:20',
-                'status'     => 'nullable|string', // Validation du status
-                'gender'     => 'nullable|in:M,F,Other',
-                'birth_date' => 'nullable|date',
-            ]);
+    public function update(Request $request, $id)
+{
+    try {
+        $profile = Profile::findOrFail($id);
+        
+        $validator = Validator::make($request->all(), [
+            'first_name'    => 'sometimes|string|max:255',
+            'last_name'     => 'sometimes|string|max:255',
+            'phone'         => 'nullable|string|max:20',
+            'status'        => 'nullable|string',
+            'gender'        => 'nullable|in:M,F,Other',
+            'date_of_birth' => 'nullable|date', // Utilise bien le nom du modèle
+        ]);
 
-        } catch (Exception $e) {
-            return response()->json(['status' => 'error', 'message' => $e->getMessage()], 500);
+        if ($validator->fails()) {
+            return response()->json(['status' => 'error', 'errors' => $validator->errors()], 422);
         }
+
+        $profile->update($request->all());
+
+        return response()->json([
+            'status' => 'success',
+            'message' => 'Profil mis à jour !',
+            'data' => $profile
+        ]);
+    } catch (Exception $e) {
+        return response()->json(['status' => 'error', 'message' => 'Profil non trouvé'], 404);
     }
+}
 }

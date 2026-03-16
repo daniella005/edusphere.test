@@ -113,4 +113,30 @@ class TimetableController extends Controller
         $entry->delete();
         return response()->json(['success' => true, 'message' => 'Cours retiré de l\'emploi du temps']);
     }
+
+    // ... reste du code ...
+    public function update(Request $request, $id)
+    {
+        $entry = TimetableEntry::find($id);
+        if (!$entry) {
+            return response()->json(['success' => false, 'message' => 'Cours non trouvé'], 404);
+        }
+
+        // On utilise 'sometimes' pour permettre des mises à jour partielles (ex: juste la salle)
+        $validator = Validator::make($request->all(), [
+            'section_id' => 'sometimes|exists:sections,id',
+            'time_slot_id' => 'sometimes|exists:time_slots,id',
+            'day_of_week' => 'sometimes|in:monday,tuesday,wednesday,thursday,friday,saturday,sunday',
+            'room_number' => 'nullable|string',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json(['success' => false, 'errors' => $validator->errors()], 422);
+        }
+
+        $entry->update($request->all());
+        return response()->json(['success' => true, 'message' => 'Emploi du temps mis à jour', 'data' => $entry]);
+    }
+
+
 }

@@ -57,4 +57,33 @@ class DepartmentController extends Controller
             ], 500);
         }
     }
+
+    public function update(Request $request, $id)
+{
+    try {
+        $department = Department::findOrFail($id);
+
+        $validator = Validator::make($request->all(), [
+            'name'        => 'sometimes|string|max:255',
+            'code'        => 'sometimes|string|max:50|unique:departments,code,' . $id,
+            'description' => 'nullable|string',
+            'is_active'   => 'sometimes|boolean'
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json(['status' => 'error', 'errors' => $validator->errors()], 422);
+        }
+
+        $department->update($request->all());
+
+        return response()->json([
+            'status' => 'success',
+            'message' => 'Département mis à jour',
+            'data' => $department
+        ]);
+    } catch (Exception $e) {
+        return response()->json(['status' => 'error', 'message' => 'Département non trouvé'], 404);
+    }
+}
+
 }

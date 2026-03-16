@@ -79,4 +79,18 @@ class StaffController extends Controller
             'data' => $staff->load(['profile', 'school', 'department'])
         ]);
     }
+
+    public function update(Request $request, $id) {
+    try {
+        $staff = Staff::findOrFail($id);
+        $validator = Validator::make($request->all(), [
+            'job_title' => 'sometimes|string|max:255',
+            'salary'    => 'sometimes|numeric',
+            'status'    => 'sometimes|string|in:active,inactive,on_leave'
+        ]);
+        if ($validator->fails()) return response()->json(['status' => 'error', 'errors' => $validator->errors()], 422);
+        $staff->update($request->all());
+        return response()->json(['status' => 'success', 'message' => 'Personnel mis à jour', 'data' => $staff]);
+    } catch (Exception $e) { return response()->json(['status' => 'error', 'message' => 'Membre non trouvé'], 404); }
+}
 }

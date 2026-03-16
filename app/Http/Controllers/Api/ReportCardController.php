@@ -286,5 +286,71 @@ class ReportCardController extends Controller
     }
 
     return response()->json(['success' => true, 'message' => 'Rangs mis à jour']);
+} 
+
+public function update(Request $request, $id)
+{
+    $reportCard = ReportCard::findOrFail($id);
+
+    $validator = Validator::make($request->all(), [
+        'attendance_percentage' => 'sometimes|numeric|min:0|max:100',
+        'teacher_remarks' => 'sometimes|string|nullable',
+        'principal_remarks' => 'sometimes|string|nullable',
+        'status' => 'sometimes|in:draft,published',
+        'subjects' => 'sometimes|array',
+        'subjects.*.subject_id' => 'required_with:subjects|exists:subjects,id',
+        'subjects.*.marks_obtained' => 'required_with:subjects|numeric|min:0',
+        'subjects.*.total_marks' => 'required_with:subjects|numeric|min:1'
+    ]);
+
+    if ($validator->fails()) {
+        return response()->json(['success' => false, 'errors' => $validator->errors()], 422);
+    }
+
+    DB::beginTransaction();
+    try {
+        // 1. Mise à jour des infos de base
+        $reportCard->update($request->only([
+            'attendance_percentage', 'teacher_remarks', 'principal_remarks', 'status'
+        ]));
+
+        // 2. Mise à jour des notes par matière (si présentes dans la requête)
+        if ($request->has('subjects')) {
+            foreach ($request->subjects as $subData) {
+                ReportCardSubject::updateOrCreate(
+                    ['report_card_id' => $reportCard->id, 'subject_id' => $subData['subject_id']],
+                    [
+                        'marks_obtained' => $subData['marks_obtained'],
+                        'total_marks' => $subData['total_marks'],
+                        'percentage' => ($subData['marks_obtained'] / $subData['total_marks']) * 100
+                    ]
+                );
+            }
+
+            // 3. RECALCUL AUTOMATIQUE DES TOTAUX DU BULLETIN
+            $allSubjects = ReportCardSubject::where('report_card_id', $reportCard->id)->get();
+            $totalMax = $allSubjects->sum('total_marks');
+            $totalObtained = $allSubjects->sum('marks_obtained');
+            
+            $reportCard->update([
+                'total_marks' => $totalMax,
+                'marks_obtained' => $totalObtained,
+                'percentage' => $totalMax > 0 ? ($totalObtained / $totalMax) * 100 : 0,
+                // Le GPA peut être calculé ici selon ta logique de points
+            ]);
+        }
+
+        DB::commit();
+        return response()->json([
+            'success' => true, 
+            'message' => 'Bulletin mis à jour et moyennes recalculées',
+            'data' => $reportCard->load('subjects')
+        ]);
+
+    } catch (\Exception $e) {
+        DB::rollBack();
+        return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
+    }
 }
+
 }

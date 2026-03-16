@@ -112,4 +112,27 @@ class LessonPlanController extends Controller
             'data' => $lessonPlan->load(['teacher.profile', 'subject', 'section'])
         ]);
     }
+
+    public function update(Request $request, $id) {
+    try {
+        $lessonPlan = LessonPlan::findOrFail($id);
+        
+        $validator = Validator::make($request->all(), [
+            'title' => 'sometimes|string|max:255',
+            'topic' => 'sometimes|string|max:255',
+            'status' => 'sometimes|in:draft,submitted,approved,rejected',
+            'planned_date' => 'sometimes|date',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json(['status' => 'error', 'errors' => $validator->errors()], 422);
+        }
+
+        $lessonPlan->update($request->all());
+        return response()->json(['status' => 'success', 'message' => 'Plan de cours mis à jour', 'data' => $lessonPlan]);
+    } catch (Exception $e) { 
+        return response()->json(['status' => 'error', 'message' => 'Plan non trouvé'], 404); 
+    }
+}
+
 }

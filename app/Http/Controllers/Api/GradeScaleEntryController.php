@@ -13,29 +13,20 @@ class GradeScaleEntryController extends Controller
     /**
      * Afficher les entrées d'une échelle
      */
-    public function index(Request $request)
+    // Dans GradeScaleEntryController.php
+public function index(Request $request)
 {
-    // On passe de 'required' à 'nullable'
-    $validator = Validator::make($request->all(), [
-        'grade_scale_id' => 'nullable|exists:grade_scales,id'
-    ]);
-
-    if ($validator->fails()) {
-        return response()->json(['success' => false, 'errors' => $validator->errors()], 422);
-    }
-
     $query = GradeScaleEntry::with(['gradeScale']);
 
-    // Si on a un ID, on filtre. Sinon, on trie tout par score minimum.
-    if ($request->has('grade_scale_id')) {
+    if ($request->filled('grade_scale_id')) {
         $query->where('grade_scale_id', $request->grade_scale_id);
     }
 
-    $entries = $query->orderBy('minimum_score', 'asc')->get();
+    // Ajout d'une pagination ou d'un get()
+    $entries = $query->orderBy('minimum_score', 'desc')->get(); // Trie du plus haut au plus bas (souvent mieux pour les bulletins)
 
     return response()->json(['success' => true, 'data' => $entries]);
 }
-
     /**
      * Créer une entrée
      */

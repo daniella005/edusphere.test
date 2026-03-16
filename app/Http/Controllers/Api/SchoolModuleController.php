@@ -165,4 +165,53 @@ public function store(Request $request)
             'data' => $modules
         ]);
     }
+
+    /**
+     * Mettre à jour un module (Méthode PUT/PATCH)
+     */
+    public function update(Request $request, $id)
+    {
+        $module = SchoolModule::find($id);
+
+        if (!$module) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Module non trouvé'
+            ], 404);
+        }
+
+        $validator = Validator::make($request->all(), [
+            'is_enabled' => 'sometimes|boolean',
+            'config' => 'sometimes|array',
+            'module_name' => 'sometimes|string'
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'errors' => $validator->errors()
+            ], 422);
+        }
+
+        $data = $request->all();
+
+        // Logique métier : Si le statut change, on met à jour les timestamps correspondants
+        if ($request->has('is_enabled') && $request->is_enabled != $module->is_enabled) {
+            if ($request->is_enabled) {
+                $data['enabled_at'] = now();
+                $data['disabled_at'] = null;
+            } else {
+                $data['disabled_at'] = now();
+            }
+        }
+
+        $module->update($data);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Module mis à jour avec succès',
+            'data' => $module
+        ]);
+    }
+    
 }

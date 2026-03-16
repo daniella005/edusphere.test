@@ -36,6 +36,22 @@ class MessageRecipientController extends Controller
         ]);
     }
 
+    public function update(Request $request, $id)
+{
+    $item = \App\Models\MessageRecipient::find($id);
+    if (!$item) return response()->json(['status' => 'error', 'message' => 'Destinataire introuvable'], 404);
+
+    $validator = \Illuminate\Support\Facades\Validator::make($request->all(), [
+        'is_read' => 'sometimes|boolean',
+        'is_archived' => 'sometimes|boolean'
+    ]);
+
+    if ($validator->fails()) return response()->json(['status' => 'error', 'errors' => $validator->errors()], 422);
+
+    $item->update($request->all());
+    return response()->json(['status' => 'success', 'message' => 'Destinataire mis à jour', 'data' => $item], 200);
+}
+
     /**
      * Afficher un destinataire spécifique
      */

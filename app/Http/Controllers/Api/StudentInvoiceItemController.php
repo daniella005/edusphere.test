@@ -94,71 +94,22 @@ class StudentInvoiceItemController extends Controller
     }
 
     public function update(Request $request, $id)
-    {
-        $item = StudentInvoiceItem::find($id);
-        
-        if (!$item) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Ligne de facture non trouvée'
-            ], 404);
-        }
-
-        // Ne pas permettre la modification si la facture est payée
-        if ($item->invoice->status === 'paid') {
-            return response()->json([
-                'success' => false,
-                'message' => 'Impossible de modifier une facture payée'
-            ], 409);
-        }
-
-        $validator = Validator::make($request->all(), [
-            'description' => 'sometimes|string',
-            'quantity' => 'sometimes|integer|min:1',
-            'unit_price' => 'sometimes|numeric|min:0'
-        ]);
-
-        if ($validator->fails()) {
-            return response()->json([
-                'success' => false,
-                'errors' => $validator->errors()
-            ], 422);
-        }
-
-        DB::beginTransaction();
-        try {
-            // Soustraire l'ancien montant
-            $item->invoice->subtotal -= $item->amount;
-            $item->invoice->total_amount -= $item->amount;
-            $item->invoice->balance_amount -= $item->amount;
-
-            // Mettre à jour l'item
-            $item->fill($request->all());
-            $item->amount = $item->quantity * $item->unit_price;
-            $item->save();
-
-            // Ajouter le nouveau montant
-            $item->invoice->subtotal += $item->amount;
-            $item->invoice->total_amount += $item->amount;
-            $item->invoice->balance_amount += $item->amount;
-            $item->invoice->save();
-
-            DB::commit();
-
-            return response()->json([
-                'success' => true,
-                'data' => $item
-            ]);
-
-        } catch (\Exception $e) {
-            DB::rollBack();
-            return response()->json([
-                'success' => false,
-                'message' => 'Erreur lors de la mise à jour',
-                'error' => $e->getMessage()
-            ], 500);
-        }
+{
+    $invoice = \App\Models\StudentInvoice::find($id);
+    
+    if (!$invoice) {
+        return response()->json(['success' => false, 'message' => 'Facture non trouvée'], 404);
     }
+
+    // On permet de modifier les notes ou le statut
+    $invoice->update($request->only(['notes', 'status', 'due_date']));
+
+    return response()->json([
+        'success' => true,
+        'message' => 'Facture mise à jour avec succès',
+        'data' => $invoice
+    ]);
+}
 
     public function destroy($id)
     {

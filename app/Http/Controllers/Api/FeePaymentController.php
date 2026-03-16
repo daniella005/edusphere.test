@@ -100,4 +100,24 @@ class FeePaymentController extends Controller
         if (!$payment) return response()->json(['success' => false, 'message' => 'Paiement non trouvé'], 404);
         return response()->json(['success' => true, 'data' => $payment]);
     }
+
+    public function update(Request $request, $id) {
+    try {
+        $payment = FeePayment::findOrFail($id);
+        $validator = Validator::make($request->all(), [
+            'amount' => 'sometimes|numeric|min:1',
+            'payment_method' => 'sometimes|string',
+            'notes' => 'sometimes|string|nullable'
+        ]);
+        if ($validator->fails()) return response()->json(['success' => false, 'errors' => $validator->errors()], 422);
+        
+        $payment->update($request->all());
+        if($request->has('amount')) $payment->invoice->refreshTotals(); // Recalcul de la facture si le montant change
+        
+        return response()->json(['success' => true, 'message' => 'Paiement mis à jour', 'data' => $payment]);
+    } catch (\Exception $e) {
+        return response()->json(['success' => false, 'message' => 'Paiement non trouvé'], 404);
+    }
+}
+
 }

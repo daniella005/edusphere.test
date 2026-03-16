@@ -10,6 +10,16 @@ use Illuminate\Support\Facades\Auth;
 
 class AnnouncementReadController extends Controller
 {
+    // Ajoute ceci juste après l'ouverture de la classe
+public function index()
+{
+    $reads = AnnouncementRead::with(['user:id,first_name,last_name'])->get();
+    return response()->json([
+        'success' => true,
+        'data' => $reads
+    ]);
+}
+
     /**
      * Marquer une annonce comme lue pour l'utilisateur connecté
      */
@@ -58,4 +68,21 @@ class AnnouncementReadController extends Controller
             'data' => $readers
         ]);
     }
+
+    public function update(Request $request, $id)
+{
+    $item = \App\Models\AnnouncementRead::find($id);
+    if (!$item) return response()->json(['status' => 'error', 'message' => 'Lecture non trouvée'], 404);
+
+    $validator = \Illuminate\Support\Facades\Validator::make($request->all(), [
+        'read_at' => 'sometimes|date',
+        'ip_address' => 'sometimes|string'
+    ]);
+
+    if ($validator->fails()) return response()->json(['status' => 'error', 'errors' => $validator->errors()], 422);
+
+    $item->update($request->all());
+    return response()->json(['status' => 'success', 'message' => 'Statut de lecture mis à jour', 'data' => $item], 200);
+}
+
 }

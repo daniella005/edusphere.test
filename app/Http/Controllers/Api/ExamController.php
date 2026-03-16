@@ -84,4 +84,18 @@ class ExamController extends Controller
             'data' => $exam->load(['category', 'school', 'createdBy', 'schedules'])
         ]);
     }
+
+    public function update(Request $request, $id) {
+    try {
+        $exam = Exam::findOrFail($id);
+        $validator = Validator::make($request->all(), [
+            'name'   => 'sometimes|string|max:255',
+            'status' => 'sometimes|in:scheduled,ongoing,completed,cancelled'
+        ]);
+        if ($validator->fails()) return response()->json(['status' => 'error', 'errors' => $validator->errors()], 422);
+        $exam->update($request->all());
+        return response()->json(['status' => 'success', 'message' => 'Examen mis à jour', 'data' => $exam]);
+    } catch (Exception $e) { return response()->json(['status' => 'error', 'message' => 'Examen non trouvé'], 404); }
+}
+
 }

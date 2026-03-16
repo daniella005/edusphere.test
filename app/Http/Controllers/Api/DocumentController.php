@@ -96,4 +96,24 @@ class DocumentController extends Controller
         $document = Document::findOrFail($id);
         return Storage::disk('public')->download($document->file_path, $document->original_name);
     }
+
+    public function update(Request $request, $id)
+{
+    $document = \App\Models\Document::findOrFail($id);
+
+    $validator = Validator::make($request->all(), [
+        'category' => 'sometimes|string',
+        'description' => 'sometimes|string|nullable',
+        'is_public' => 'sometimes|boolean'
+    ]);
+
+    if ($validator->fails()) {
+        return response()->json(['success' => false, 'errors' => $validator->errors()], 422);
+    }
+
+    $document->update($request->only(['category', 'description', 'is_public']));
+
+    return response()->json(['success' => true, 'data' => $document]);
+}
+
 }

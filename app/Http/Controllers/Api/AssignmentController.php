@@ -110,4 +110,13 @@ class AssignmentController extends Controller
             return response()->json(['status' => 'error', 'message' => $e->getMessage()], 500);
         }
     }
+
+    public function update(Request $request, $id) {
+    try {
+        $assignment = Assignment::findOrFail($id);
+        $assignment->update($request->all());
+        return response()->json(['status' => 'success', 'message' => 'Devoir mis à jour', 'data' => $assignment]);
+    } catch (Exception $e) { return response()->json(['status' => 'error', 'message' => 'Devoir non trouvé'], 404); }
+}
+
 }

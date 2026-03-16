@@ -17,37 +17,18 @@ class StudentAttendanceController extends Controller
      */
     public function index(Request $request)
     {
+        // Correction : markedBy au lieu de recorder pour correspondre au modèle
         $query = StudentAttendance::with(['student', 'section', 'markedBy']);
         
-        // Filtres
-        if ($request->has('student_id')) {
-            $query->where('student_id', $request->student_id);
-        }
+        if ($request->has('student_id')) $query->where('student_id', $request->student_id);
+        if ($request->has('section_id')) $query->where('section_id', $request->section_id);
+        if ($request->has('date')) $query->whereDate('attendance_date', $request->date);
+        if ($request->has('status')) $query->where('status', $request->status);
         
-        if ($request->has('section_id')) {
-            $query->where('section_id', $request->section_id);
-        }
+        // Correction du tri : attendance_date au lieu de date
+        $attendances = $query->orderBy('attendance_date', 'desc')->paginate($request->get('per_page', 15));
         
-        if ($request->has('date')) {
-            $query->whereDate('date', $request->date);
-        }
-        
-        if ($request->has('date_from') && $request->has('date_to')) {
-            $query->whereBetween('date', [$request->date_from, $request->date_to]);
-        }
-        
-        if ($request->has('status')) {
-            $query->where('status', $request->status);
-        }
-        
-        // Pagination
-        $perPage = $request->get('per_page', 15);
-        $attendances = $query->orderBy('date', 'desc')->paginate($perPage);
-        
-        return response()->json([
-            'success' => true,
-            'data' => $attendances
-        ]);
+        return response()->json(['success' => true, 'data' => $attendances]);
     }
 
     /**
@@ -129,32 +110,27 @@ class StudentAttendanceController extends Controller
     /**
      * Mettre à jour une présence
      */
+    // PUT : Mise à jour (OPTIMISÉ)
     public function update(Request $request, $id)
     {
         $attendance = StudentAttendance::find($id);
 
         if (!$attendance) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Présence non trouvée'
-            ], 404);
+            return response()->json(['success' => false, 'message' => 'Présence non trouvée'], 404);
         }
 
         $validator = Validator::make($request->all(), [
             'status' => 'sometimes|in:present,absent,late,excused',
-            'check_in_time' => 'nullable|date_format:H:i:s',
-            'check_out_time' => 'nullable|date_format:H:i:s|after:check_in_time',
-            'remarks' => 'nullable|string'
+            'remark' => 'nullable|string', // Utilisation de remark (singulier)
+            'attendance_date' => 'sometimes|date'
         ]);
 
         if ($validator->fails()) {
-            return response()->json([
-                'success' => false,
-                'errors' => $validator->errors()
-            ], 422);
+            return response()->json(['success' => false, 'errors' => $validator->errors()], 422);
         }
 
-        $attendance->update($request->all());
+        // On ne met à jour que les champs autorisés
+        $attendance->update($request->only(['status', 'remark', 'attendance_date']));
 
         return response()->json([
             'success' => true,
@@ -162,7 +138,6 @@ class StudentAttendanceController extends Controller
             'data' => $attendance
         ]);
     }
-
     /**
      * Supprimer une présence
      */
@@ -259,64 +234,28 @@ class StudentAttendanceController extends Controller
         }
 
         DB::beginTransaction();
-        try {
-            $created = [];
-            $errors = [];
-
-            foreach ($request->attendances as $attendanceData) {
-                // Vérifier si l'étudiant est dans la bonne section
-                $student = Student::find($attendanceData['student_id']);
-                if ($student->section_id != $request->section_id) {
-                    $errors[] = "L'étudiant {$student->id} n'est pas dans cette section";
-                    continue;
-                }
-
-                // Vérifier si une présence existe déjà
-                $exists = StudentAttendance::where('student_id', $attendanceData['student_id'])
-                    ->whereDate('date', $request->date)
-                    ->exists();
-
-                if ($exists) {
-                    $errors[] = "Une présence existe déjà pour l'étudiant {$student->id} à cette date";
-                    continue;
-                }
-
-                // Créer la présence
-                // Au lieu de StudentAttendance::create([...])
-$attendance = new \App\Models\StudentAttendance();
-$attendance->setTable('attendances'); // ON FORCE ICI
-$attendance->fill([
-    'student_id'       => $request->student_id,
-    'attendance_date'  => $request->attendance_date,
-    'section_id'       => $request->section_id,
-    'status'           => $request->status,
-    'remark'           => $request->remark,
-    'recorded_by'      => $request->recorded_by,
-    'academic_term_id' => $request->academic_term_id,
-]);
-$attendance->save();
-
-                $created[] = $attendance;
-            }
-
-            DB::commit();
-
-            return response()->json([
-                'success' => true,
-                'message' => count($created) . ' présence(s) enregistrée(s)',
-                'data' => [
-                    'created' => $created,
-                    'errors' => $errors
+    try {
+        foreach ($request->attendances as $data) {
+            // Utilisation de updateOrCreate pour éviter les doublons
+            StudentAttendance::updateOrCreate(
+                [
+                    'student_id'      => $data['student_id'],
+                    'attendance_date' => $request->date,
+                    'section_id'      => $request->section_id,
+                ],
+                [
+                    'status'           => $data['status'],
+                    'remark'           => $data['remarks'] ?? null,
+                    'recorded_by'      => $request->marked_by,
+                    'academic_term_id' => $request->academic_term_id ?? $someDefault, 
                 ]
-            ], 201);
-
-        } catch (\Exception $e) {
-            DB::rollBack();
-            return response()->json([
-                'success' => false,
-                'message' => 'Erreur lors de l\'enregistrement',
-                'error' => $e->getMessage()
-            ], 500);
+            );
         }
+        DB::commit();
+        return response()->json(['success' => true, 'message' => 'Présences traitées']);
+    } catch (\Exception $e) {
+        DB::rollBack();
+        return response()->json(['success' => false, 'error' => $e->getMessage()], 500);
+    }
     }
 }

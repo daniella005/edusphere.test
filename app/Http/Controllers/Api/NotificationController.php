@@ -270,4 +270,20 @@ class NotificationController extends Controller
             'message' => count($notifications) . ' notification(s) créée(s)'
         ]);
     }
+
+    public function update(Request $request, $id) {
+    $notification = Notification::find($id);
+    if (!$notification) return response()->json(['success' => false, 'message' => 'Notification non trouvée'], 404);
+
+    $validator = Validator::make($request->all(), [
+        'title' => 'sometimes|string|max:255',
+        'message' => 'sometimes|string',
+        'is_read' => 'sometimes|boolean'
+    ]);
+    if ($validator->fails()) return response()->json(['success' => false, 'errors' => $validator->errors()], 422);
+
+    $notification->update($request->all());
+    return response()->json(['success' => true, 'message' => 'Notification mise à jour', 'data' => $notification]);
+}
+
 }

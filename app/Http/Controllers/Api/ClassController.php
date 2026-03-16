@@ -62,10 +62,22 @@ class ClassController extends Controller
     /**
      * Update the specified resource in storage.
      */
-    public function update(Request $request, ClassModel $classModel)
-    {
-        //
+public function update(Request $request, $id)
+{
+    try {
+        $class = ClassModel::findOrFail($id);
+        // On limite ce qu'on peut modifier pour éviter de casser les relations école/année
+        $class->update($request->only(['name', 'code', 'level', 'is_active']));
+        
+        return response()->json([
+            'status' => 'success', 
+            'message' => 'Classe mise à jour', 
+            'data' => $class
+        ]);
+    } catch (\Exception $e) {
+        return response()->json(['status' => 'error', 'message' => 'Classe non trouvée'], 404);
     }
+}
 
     /**
      * Remove the specified resource from storage.

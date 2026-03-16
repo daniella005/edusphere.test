@@ -115,57 +115,42 @@ class StudentParentController extends Controller
      * Mettre à jour une relation
      */
     public function update(Request $request, $id)
-    {
-        $relation = StudentParent::find($id);
+{
+    $relation = StudentParent::findOrFail($id);
 
-        if (!$relation) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Relation non trouvée'
-            ], 404);
-        }
+    $validator = Validator::make($request->all(), [
+        'relationship' => 'sometimes|string|max:50',
+        'is_primary_contact' => 'sometimes|boolean',
+        'is_emergency_contact' => 'sometimes|boolean',
+        'can_pickup' => 'sometimes|boolean'
+    ]);
 
-        $validator = Validator::make($request->all(), [
-            'relationship' => 'sometimes|string|max:50',
-            'is_primary_contact' => 'sometimes|boolean',
-            'is_emergency_contact' => 'sometimes|boolean',
-            'can_pickup' => 'sometimes|boolean'
-        ]);
-
-        if ($validator->fails()) {
-            return response()->json([
-                'success' => false,
-                'errors' => $validator->errors()
-            ], 422);
-        }
-
-        DB::beginTransaction();
-        try {
-            if ($request->is_primary_contact) {
-                StudentParent::where('student_id', $relation->student_id)
-                    ->where('id', '!=', $id)
-                    ->update(['is_primary_contact' => false]);
-            }
-
-            $relation->update($request->all());
-
-            DB::commit();
-
-            return response()->json([
-                'success' => true,
-                'data' => $relation
-            ]);
-
-        } catch (\Exception $e) {
-            DB::rollBack();
-            return response()->json([
-                'success' => false,
-                'message' => 'Erreur lors de la mise à jour',
-                'error' => $e->getMessage()
-            ], 500);
-        }
+    if ($validator->fails()) {
+        return response()->json(['success' => false, 'errors' => $validator->errors()], 422);
     }
 
+    DB::beginTransaction();
+    try {
+        // Si on définit ce parent comme contact principal, on désactive l'ancien pour cet élève
+        if ($request->is_primary_contact == true) {
+            StudentParent::where('student_id', $relation->student_id)
+                ->where('id', '!=', $id)
+                ->update(['is_primary_contact' => false]);
+        }
+
+        $relation->update($request->all());
+        DB::commit();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Relation mise à jour avec succès',
+            'data' => $relation->load(['student.user', 'parent.user'])
+        ]);
+    } catch (\Exception $e) {
+        DB::rollBack();
+        return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
+    }
+}
     /**
      * Supprimer une relation
      */
